@@ -18,6 +18,9 @@ let thresholds = {
     fats: 65
 };
 
+// API Keys - INSERISCI QUI LA TUA GEMINI API KEY
+let geminiApiKey = 'AIzaSyCkJYwQEWZ4zc7HDyBlMtQM3XVh--lMbwo';
+
 // Inizializzazione all'avvio
 document.addEventListener('DOMContentLoaded', function() {
     loadData();
@@ -27,6 +30,283 @@ document.addEventListener('DOMContentLoaded', function() {
     setupSearchInput();
     updateThresholdsInputs();
 });
+
+// Imposta esempio nella textarea AI
+function setAIExample(text) {
+    document.getElementById('ai-input').value = text;
+    document.getElementById('ai-input').focus();
+}
+
+// Analizza il piatto con Gemini AI (versione semplificata, solo Gemini)
+async function analyzeWithGemini() {
+    const input = document.getElementById('ai-input').value.trim();
+    const mealType = document.getElementById('ai-meal-select').value;
+    const resultDiv = document.getElementById('ai-result');
+    
+    if (!input) {
+        alert('❌ Descrivi cosa vuoi mangiare!');
+        return;
+    }
+    
+    if (!geminiApiKey || geminiApiKey === 'INSERISCI_QUI_LA_TUA_CHIAVE_GEMINI') {
+        resultDiv.innerHTML = `
+            <div class="ai-result-card ai-error">
+                <h3>⚠️ API Key non configurata</h3>
+                <p>La Gemini API Key non è stata configurata nel codice.</p>
+                <p style="font-size: 13px; margin-top: 10px;">
+                    Per configurarla, modifica il file <code>script.js</code> e sostituisci 
+                    <code>'INSERISCI_QUI_LA_TUA_CHIAVE_GEMINI'</code> con la tua chiave API di Google Gemini.
+                </p>
+                <button class="btn btn-secondary" onclick="document.getElementById('ai-result').classList.remove('active')" style="margin-top: 15px;">
+                    Chiudi
+                </button>
+            </div>
+        `;
+        resultDiv.classList.add('active');
+        return;
+    }
+    
+    // Mostra loading
+    resultDiv.innerHTML = `
+        <div class="ai-loading">
+            <div class="ai-loading-spinner"></div>
+            <p style="color: #666;">🤖 Gemini AI sta analizzando il tuo piatto...</p>
+        </div>
+    `;
+    resultDiv.classList.add('active');
+    
+    try {
+        // Usa il modello Gemini 1.5 Flash
+        const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-3-flash-preview:generateContent?key=${geminiApiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: `Sei un esperto nutrizionista italiano. Analizza questo piatto/alimento e fornisci una stima accurata dei macronutrienti.
+
+Piatto descritto dall'utente: "${input}"
+
+Regole:
+1. Se l'utente specifica i grammi (es: "pasta 80g"), usa quella quantità
+2. Altrimenti usa porzioni standard italiane:
+   - Pizza: 300g
+   - Pasta/Riso (porzione): 80g crudi = 200g cotti
+   - Carne/Pesce: 150g
+   - Insalata: 200g
+   - Verdure cotte: 150g
+   - Pane: 50g
+   - Frutta: 150g
+
+3. Per piatti composti (es: "pasta carbonara"), calcola tutti gli ingredienti:
+   - Pasta carbonara 80g: pasta 80g + guanciale 30g + uovo 50g + pecorino 15g
+   - Pizza margherita: impasto 200g + mozzarella 80g + pomodoro 50g + olio 10g
+
+4. Sii preciso con i valori nutrizionali basandoti su database nutrizionali standard
+
+Rispondi SOLO con un oggetto JSON valido (niente markdown, niente backtick, niente testo aggiuntivo):
+{
+  "name": "Nome del piatto in italiano",
+  "quantity": numero_grammi_totali,
+  "calories": calorie_totali_numero,
+  "proteins": grammi_proteine_numero,
+  "carbs": grammi_carboidrati_numero,
+  "fats": grammi_grassi_numero,
+  "description": "Breve descrizione degli ingredienti principali"
+}
+
+IMPORTANTE: Restituisci SOLO il JSON, senza \`\`\`json o altro testo.`
+                    }]
+                }]
+            })
+        });
+        
+        // Gestione errori specifici
+        if (!geminiResponse.ok) {
+            const errorData = await geminiResponse.json();
+            console.error('Errore Gemini completo:', errorData);
+            
+            // Errore 429 - Rate Limit
+            if (geminiResponse.status === 429) {
+                throw new Error('RATE_LIMIT');
+            }
+            
+            // Errore 400 - API Key non valida o altri errori
+            if (geminiResponse.status === 400) {
+                if (errorData.error?.message?.includes('API key not valid')) {
+                    throw new Error('INVALID_API_KEY');
+                }
+                throw new Error('BAD_REQUEST');
+            }
+            
+            // Errore 403 - Permessi
+            if (geminiResponse.status === 403) {
+                throw new Error('QUOTA_EXCEEDED');
+            }
+            
+            throw new Error(`Errore API: ${geminiResponse.status}`);
+        }
+        
+        const geminiData = await geminiResponse.json();
+        console.log('Risposta Gemini:', geminiData);
+        
+        // Verifica che ci sia una risposta
+        if (!geminiData.candidates || !geminiData.candidates[0] || !geminiData.candidates[0].content) {
+            throw new Error('Risposta Gemini vuota o non valida');
+        }
+        
+        const geminiText = geminiData.candidates[0].content.parts[0].text;
+        console.log('Testo Gemini:', geminiText);
+        
+        // Rimuovi eventuali backtick e markdown
+        let cleanText = geminiText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        
+        // Estrai JSON dalla risposta
+        const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            console.error('JSON non trovato in:', cleanText);
+            throw new Error('Risposta AI non contiene JSON valido');
+        }
+        
+        const nutritionData = JSON.parse(jsonMatch[0]);
+        
+        // Valida i dati
+        if (!nutritionData.name || !nutritionData.calories || !nutritionData.proteins) {
+            throw new Error('Dati nutrizionali incompleti');
+        }
+        
+        // Mostra il risultato
+        displayAIResult(nutritionData, mealType);
+        
+    } catch (error) {
+        console.error('Errore analisi:', error);
+        
+        let errorTitle = '❌ Errore';
+        let errorMessage = error.message;
+        let errorDetails = '';
+        
+        // Messaggi di errore personalizzati
+        if (error.message === 'RATE_LIMIT') {
+            errorTitle = '⏱️ Limite di richieste raggiunto';
+            errorMessage = 'Hai superato il limite di richieste per minuto di Gemini API.';
+            errorDetails = `
+                <p style="font-size: 13px; margin-top: 10px;">
+                    <strong>Limiti gratuiti Gemini:</strong><br>
+                    • 15 richieste al minuto<br>
+                    • 1500 richieste al giorno<br>
+                    • 1 milione di token al giorno
+                </p>
+                <p style="font-size: 13px; margin-top: 10px; color: #667eea;">
+                    💡 <strong>Soluzione:</strong> Aspetta 1-2 minuti prima di fare altre richieste.
+                </p>
+            `;
+        } else if (error.message === 'QUOTA_EXCEEDED') {
+            errorTitle = '📊 Quota giornaliera superata';
+            errorMessage = 'Hai esaurito la quota giornaliera gratuita di Gemini API.';
+            errorDetails = `
+                <p style="font-size: 13px; margin-top: 10px;">
+                    La quota gratuita è di <strong>1500 richieste al giorno</strong>.
+                </p>
+                <p style="font-size: 13px; margin-top: 10px; color: #667eea;">
+                    💡 <strong>Soluzioni:</strong><br>
+                    • Aspetta fino a domani (reset alle 00:00 UTC)<br>
+                    • Usa la ricerca manuale nel frattempo
+                </p>
+            `;
+        } else if (error.message === 'INVALID_API_KEY') {
+            errorTitle = '🔑 API Key non valida';
+            errorMessage = 'La chiave API di Gemini non è valida o è stata revocata.';
+            errorDetails = `
+                <p style="font-size: 13px; margin-top: 10px;">
+                    Verifica che la chiave nel codice sia corretta.<br>
+                    Puoi generare una nuova chiave su <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #667eea;">Google AI Studio</a>
+                </p>
+            `;
+        }
+        
+        resultDiv.innerHTML = `
+            <div class="ai-result-card ai-error">
+                <h3>${errorTitle}</h3>
+                <p><strong>${errorMessage}</strong></p>
+                ${errorDetails}
+                <button class="btn btn-secondary" onclick="document.getElementById('ai-result').classList.remove('active')" style="margin-top: 15px; width: 100%;">
+                    Chiudi
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Mostra il risultato dell'analisi AI
+function displayAIResult(data, mealType) {
+    const resultDiv = document.getElementById('ai-result');
+    
+    resultDiv.innerHTML = `
+        <div class="ai-result-card">
+            <div class="ai-result-header">
+                <div class="ai-result-title">
+                    ${data.name} (${data.quantity}g)
+                </div>
+            </div>
+            
+            ${data.description ? `<p style="color: #666; margin-bottom: 15px; font-size: 14px;">${data.description}</p>` : ''}
+            
+            <div class="ai-result-macros">
+                <div class="ai-macro-item">
+                    <div class="ai-macro-label">Calorie</div>
+                    <div class="ai-macro-value">${Math.round(data.calories)}</div>
+                </div>
+                <div class="ai-macro-item">
+                    <div class="ai-macro-label">Proteine</div>
+                    <div class="ai-macro-value">${data.proteins.toFixed(1)}g</div>
+                </div>
+                <div class="ai-macro-item">
+                    <div class="ai-macro-label">Carboidrati</div>
+                    <div class="ai-macro-value">${data.carbs.toFixed(1)}g</div>
+                </div>
+                <div class="ai-macro-item">
+                    <div class="ai-macro-label">Grassi</div>
+                    <div class="ai-macro-value">${data.fats.toFixed(1)}g</div>
+                </div>
+            </div>
+            
+            <div class="ai-result-actions">
+                <button class="btn btn-primary" onclick="addAIResultToMeal('${mealType}', ${JSON.stringify(data).replace(/"/g, '&quot;')})">
+                    ➕ Aggiungi a ${getMealName(mealType)}
+                </button>
+                <button class="btn btn-secondary" onclick="document.getElementById('ai-result').classList.remove('active')">
+                    ✖️ Annulla
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// Aggiungi il risultato AI al pasto
+function addAIResultToMeal(mealType, data) {
+    const item = {
+        id: Date.now(),
+        name: data.name,
+        quantity: data.quantity,
+        calories: Math.round(data.calories),
+        proteins: parseFloat(data.proteins.toFixed(1)),
+        carbs: parseFloat(data.carbs.toFixed(1)),
+        fats: parseFloat(data.fats.toFixed(1))
+    };
+    
+    meals[mealType].push(item);
+    saveData();
+    renderMeals();
+    updateTotals();
+    
+    // Nascondi risultato e pulisci input
+    document.getElementById('ai-result').classList.remove('active');
+    document.getElementById('ai-input').value = '';
+    
+    showNotification(`✅ ${data.name} aggiunto a ${getMealName(mealType)}!`);
+}
 
 // Carica le soglie salvate
 function loadThresholds() {

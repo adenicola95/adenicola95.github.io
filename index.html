@@ -2,7 +2,10 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#667eea">
     <meta name="description" content="Traccia i tuoi macronutrienti quotidiani e settimanali">
     <title>Macro Tracker - Monitora i tuoi macronutrienti</title>
     <link rel="stylesheet" href="style.css">
@@ -21,8 +24,44 @@
 
         <!-- TAB OGGI -->
         <div id="today-tab" class="tab-content active">
+            <!-- Sezione AI Smart Input con Gemini -->
+            <div class="ai-section">
+                <h2 style="margin-bottom: 15px;">🤖 Aggiungi Piatto con AI (Powered by Gemini)</h2>
+                <p style="margin-bottom: 15px; color: #666; font-size: 14px;">Descrivi cosa vuoi mangiare e Gemini AI calcolerà i macronutrienti in modo intelligente!</p>
+                
+                <div class="ai-input-container">
+                    <div class="ai-input-wrapper">
+                        <textarea id="ai-input" 
+                                  placeholder="Es: pizza diavola, pasta carbonara 150g, insalata di pollo con verdure..."
+                                  rows="2"></textarea>
+                        <div class="ai-examples">
+                            <span class="ai-example-label">Esempi:</span>
+                            <button class="ai-example-btn" onclick="setAIExample('pizza margherita')">🍕 Pizza margherita</button>
+                            <button class="ai-example-btn" onclick="setAIExample('pasta carbonara 200g')">🍝 Pasta carbonara</button>
+                            <button class="ai-example-btn" onclick="setAIExample('insalata di pollo')">🥗 Insalata di pollo</button>
+                        </div>
+                    </div>
+                    <div class="ai-controls">
+                        <select id="ai-meal-select" class="meal-select">
+                            <option value="breakfast">Colazione</option>
+                            <option value="lunch" selected>Pranzo</option>
+                            <option value="dinner">Cena</option>
+                            <option value="snack">Snack</option>
+                        </select>
+                        <button class="btn btn-primary ai-analyze-btn" onclick="analyzeWithGemini()">
+                            ✨ Analizza con AI
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Risultato AI -->
+                <div id="ai-result" class="ai-result"></div>
+            </div>
+
+            <div class="divider"></div>
+
             <div class="search-section">
-                <h2 style="margin-bottom: 20px;">🔍 Cerca Alimenti</h2>
+                <h2 style="margin-bottom: 20px;">🔍 Cerca Alimenti (Database Open Food Facts)</h2>
                 <div class="search-box">
                     <div class="search-input-wrapper">
                         <input type="text" id="search-input" placeholder="Inizia a digitare per cercare alimenti..." autocomplete="off">
