@@ -1,19 +1,139 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nutri App</title>
-
-  <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css" />
-
-  <meta name="theme-color" content="#4CAF50" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Traccia i tuoi macronutrienti quotidiani e settimanali">
+    <title>Macro Tracker - Monitora i tuoi macronutrienti</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Nutri App</h1>
-  <p>La mia app nutrizionale personale</p>
+    <div class="container">
+        <div class="header">
+            <h1>🍽️ Macro Tracker</h1>
+            <p>Monitora i tuoi macronutrienti quotidiani</p>
+        </div>
 
-  <script src="app.js"></script>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('today')">📅 Oggi</button>
+            <button class="tab" onclick="switchTab('week')">📊 Settimana</button>
+        </div>
+
+        <!-- TAB OGGI -->
+        <div id="today-tab" class="tab-content active">
+            <div class="search-section">
+                <h2 style="margin-bottom: 20px;">🔍 Cerca Alimenti</h2>
+                <div class="search-box">
+                    <div class="search-input-wrapper">
+                        <input type="text" id="search-input" placeholder="Inizia a digitare per cercare alimenti..." autocomplete="off">
+                        <div id="suggestions" class="suggestions"></div>
+                    </div>
+                    <button class="btn btn-primary" onclick="searchFood()">Cerca</button>
+                </div>
+                <div id="search-results" class="search-results"></div>
+            </div>
+
+            <div class="meal-section">
+                <div class="meal-header">🌅 Colazione</div>
+                <div id="breakfast-list" class="meal-list"></div>
+            </div>
+
+            <div class="meal-section">
+                <div class="meal-header">☀️ Pranzo</div>
+                <div id="lunch-list" class="meal-list"></div>
+            </div>
+
+            <div class="meal-section">
+                <div class="meal-header">🌙 Cena</div>
+                <div id="dinner-list" class="meal-list"></div>
+            </div>
+
+            <div class="meal-section">
+                <div class="meal-header">🍪 Snack</div>
+                <div id="snack-list" class="meal-list"></div>
+            </div>
+
+            <div class="summary">
+                <h2>Riepilogo Giornaliero</h2>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div class="summary-label">Calorie</div>
+                        <div class="summary-value" id="total-calories">0</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Proteine</div>
+                        <div class="summary-value" id="total-proteins">0g</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Carboidrati</div>
+                        <div class="summary-value" id="total-carbs">0g</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Grassi</div>
+                        <div class="summary-value" id="total-fats">0g</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB SETTIMANA -->
+        <div id="week-tab" class="tab-content">
+            <!-- Configurazione Soglie -->
+            <div class="thresholds-config">
+                <h2>⚙️ Configura le tue Soglie Giornaliere</h2>
+                <p style="margin-bottom: 15px; color: #666;">Imposta i valori target per i tuoi macronutrienti giornalieri</p>
+                <div class="thresholds-grid">
+                    <div class="threshold-input-group">
+                        <label for="threshold-calories">Calorie Target (kcal)</label>
+                        <input type="number" id="threshold-calories" class="threshold-input" value="2000" min="1000" max="5000" step="100">
+                    </div>
+                    <div class="threshold-input-group">
+                        <label for="threshold-proteins">Proteine Target (g)</label>
+                        <input type="number" id="threshold-proteins" class="threshold-input" value="150" min="50" max="300" step="5">
+                    </div>
+                    <div class="threshold-input-group">
+                        <label for="threshold-carbs">Carboidrati Target (g)</label>
+                        <input type="number" id="threshold-carbs" class="threshold-input" value="250" min="50" max="500" step="10">
+                    </div>
+                    <div class="threshold-input-group">
+                        <label for="threshold-fats">Grassi Target (g)</label>
+                        <input type="number" id="threshold-fats" class="threshold-input" value="65" min="30" max="150" step="5">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="saveThresholds()" style="margin-top: 15px;">💾 Salva Soglie</button>
+            </div>
+
+            <div class="weekly-average">
+                <h2>📈 Media Settimanale vs Soglie Target</h2>
+                <div class="average-grid">
+                    <div class="average-item">
+                        <div class="summary-label">Calorie Medie</div>
+                        <div class="summary-value" id="avg-calories">0</div>
+                        <div class="threshold-comparison" id="threshold-calories-text">Target: 2000 kcal</div>
+                    </div>
+                    <div class="average-item">
+                        <div class="summary-label">Proteine Medie</div>
+                        <div class="summary-value" id="avg-proteins">0g</div>
+                        <div class="threshold-comparison" id="threshold-proteins-text">Target: 150g</div>
+                    </div>
+                    <div class="average-item">
+                        <div class="summary-label">Carboidrati Medi</div>
+                        <div class="summary-value" id="avg-carbs">0g</div>
+                        <div class="threshold-comparison" id="threshold-carbs-text">Target: 250g</div>
+                    </div>
+                    <div class="average-item">
+                        <div class="summary-label">Grassi Medi</div>
+                        <div class="summary-value" id="avg-fats">0g</div>
+                        <div class="threshold-comparison" id="threshold-fats-text">Target: 65g</div>
+                    </div>
+                </div>
+            </div>
+
+            <h2 style="margin-bottom: 20px;">📅 Dettaglio Ultimi 7 Giorni</h2>
+            <div id="week-stats" class="week-stats"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
